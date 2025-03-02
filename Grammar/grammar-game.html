@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fun Grammar Practice!</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', cursive;
+            background: #f0f9ff;
+            padding: 20px;
+            text-align: center;
+        }
+        .category-btn {
+            background: #ff9f43;
+            color: white;
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .category-btn:hover {
+            transform: scale(1.1);
+            background: #ff7f00;
+        }
+        #quiz-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .option {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .option:hover {
+            background: #4dabf7;
+            color: white;
+            transform: translateX(10px);
+        }
+        #score {
+            font-size: 24px;
+            color: #2ecc71;
+            margin: 20px;
+        }
+        #progress {
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            margin: 20px;
+        }
+        #progress-bar {
+            height: 100%;
+            background: #2ecc71;
+            border-radius: 5px;
+            transition: width 0.5s;
+        }
+        #feedback {
+            font-size: 20px;
+            margin: 20px;
+            min-height: 30px;
+        }
+        .correct {
+            animation: bounce 0.5s;
+            color: #2ecc71;
+        }
+        .wrong {
+            animation: shake 0.5s;
+            color: #e74c3c;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 Fun Grammar Practice! 🎉</h1>
+    <div id="categories">
+        <button class="category-btn" onclick="startQuiz('prepositions')">Prepositions 🌍</button>
+        <button class="category-btn" onclick="startQuiz('verbs')">Verbs 🏃♀️</button>
+        <button class="category-btn" onclick="startQuiz('tenses')">Tenses ⏳</button>
+    </div>
+
+    <div id="quiz-container" class="hidden">
+        <div id="score">Score: 0</div>
+        <div id="progress">
+            <div id="progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="question" style="font-size: 24px; margin: 20px;"></div>
+        <div id="options"></div>
+        <div id="feedback"></div>
+    </div>
+
+    <script>
+        const OPENAI_API_KEY = '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'; // Replace with your key
+        let score = 0;
+        let currentQuestionNumber = 0;
+        const totalQuestions = 10; // Questions per session
+        let currentCategory = '';
+
+        async function startQuiz(category) {
+            currentCategory = category;
+            document.getElementById('categories').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+            await generateQuestion();
+        }
+
+        async function generateQuestion() {
+            const topics = {
+                prepositions: "preposition",
+                verbs: "verb form",
+                tenses: "verb tense"
+            };
+
+            const prompt = `Create a ${topics[currentCategory]} fill-in-the-blank question with:
+            - A funny/playful sentence
+            - 4 multiple choice options
+            - Clear explanation
+            Format as JSON: {
+                "question": "The monkey ___ danced on the pizza!",
+                "options": ["joyful", "joyfully", "joy", "joying"],
+                "correct": "joyfully",
+                "explanation": "'Joyfully' is the adverb form needed here 😄"
+            }`;
+
+            try {
+        const response = await fetch('/.netlify/functions/generate-question', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ category: currentCategory })
+        });
+
+        const questionData = await response.json();
+        showQuestion(questionData);
+    } catch (error) {
+        console.error("Error:", error);
+        document.getElementById('feedback').innerHTML = 
+            "Oops! Failed to load question. 🐒 Please try again!";
+    }
+        }
+
+        function showQuestion(q) {
+            currentQuestionNumber++;
+            document.getElementById('question').innerHTML = q.question;
+            document.getElementById('options').innerHTML = q.options.map(opt => `
+                <div class="option" onclick="checkAnswer('${opt}', '${q.correct}', '${q.explanation}')">
+                    ${opt}
+                </div>
+            `).join('');
+
+            // Update progress
+            const progressPercent = (currentQuestionNumber / totalQuestions) * 100;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+        }
+
+        function checkAnswer(selected, correct, explanation) {
+            const feedback = document.getElementById('feedback');
+            
+            if (selected === correct) {
+                score += 10;
+                document.getElementById('score').textContent = `Score: ${score}`;
+                feedback.innerHTML = `🎉 Correct! ${correct} → ${selected}<br>${explanation}`;
+                feedback.className = 'correct';
+            } else {
+                feedback.innerHTML = `❌ Oops! Correct answer: ${correct}<br>${explanation}`;
+                feedback.className = 'wrong';
+            }
+
+            // Next question after delay
+            if (currentQuestionNumber < totalQuestions) {
+                setTimeout(() => generateQuestion(), 1500);
+            } else {
+                feedback.innerHTML += `<br><br>🏁 Game Over! Final Score: ${score}`;
+            }
+        }
+    </script>
+</body>
+</html>
